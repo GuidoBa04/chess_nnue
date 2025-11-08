@@ -167,3 +167,4 @@ Le moteur combine :
 - Ajout d'un programme d'ouverture
 - Optimisation du temps de recherche via C++ ou CUDA
 - Ammélioration de l'algorithme de choix des coups
+- Ajout d'un réel moteur d'évaluation du classement élo
