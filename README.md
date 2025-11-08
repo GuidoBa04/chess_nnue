@@ -22,7 +22,10 @@ Le projet permet d'entraîner le réseau sur des données de Stockfish et de jou
 ---
 
 ## 📦 Installation
-
+```bash
+git clone https://github.com/GuidoBa04/chess_nnue.git
+cd chess_nnue
+```
 ```bash
 pip install -r requirements.txt
 ```
@@ -86,15 +89,31 @@ python gui_chess_vs_engine.py
 
 ### 3️⃣ Évaluer le moteur face à Stockfish
 
-Pour tester la force du moteur contre Stockfish à différents niveaux :
+Pour comparer les performances du moteur NNUE à différentes profondeurs ou niveaux de Stockfish  :
 
 ```bash
-python eval_vs_stockfish.py
+python eval_vs_stockfish.py \
+  --ckpt checkpoints/nnue_stockfish_best.pt \
+  --stockfish "C:\Users\bapti\Downloads\stockfish-windows-x86-64-avx2\stockfish\stockfish-windows-x86-64-avx2.exe" \
+  --games 1 \
+  --our_depth 3 \
+  --sf_skill 1 \
+  --sf_mode movetime --sf_value 200 \
+  --pgn results_sf_skill1.pgn
 ```
 
-Les résultats (parties jouées) sont automatiquement enregistrés dans `results_sf_skill1.pgn`.
+| Argument      | Description |
+|----------------|-------------|
+| `--ckpt`       | Chemin vers le modèle NNUE entraîné (`.pt`) |
+| `--stockfish`  | Chemin vers l’exécutable Stockfish |
+| `--games`      | Nombre de parties à jouer |
+| `--our_depth`  | Profondeur de recherche du moteur NNUE entraîné |
+| `--sf_skill`   | Niveau de Stockfish (0–20) |
+| `--sf_mode`    | Mode de limitation (`movetime` ou `depth`) |
+| `--sf_value`   | Valeur associée au mode choisi (ex. `200` ms ou profondeur) |
+| `--pgn`        | Nom du fichier PGN où seront enregistrées les parties |
 
----
+
 
 ## 📊 Exemple de sortie console
 
@@ -113,7 +132,7 @@ Les résultats (parties jouées) sont automatiquement enregistrés dans `results
 ## 🧱 Structure du projet
 
 ```
-nnue-chess-engine/
+chess_nnue/
 │
 ├── dataset_stockfish.csv        # Données d'entraînement
 ├── halfkp_encoder.py            # Encodage HalfKP (pièces + cases)
@@ -147,4 +166,4 @@ Le moteur combine :
 - Ajout de tablebases pour les finales (lorsque moins de 7 pièces sont présentes sur l'échiquier)
 - Ajout d'un programme d'ouverture
 - Optimisation du temps de recherche via C++ ou CUDA
-- Ajout d'un mode d'analyse automatique multi-threadé
+- Ammélioration de l'algorithme de choix des coups
