@@ -15,8 +15,6 @@ from halfkp_encoder import halfkp_dense, INPUT_DIM
 
 
 TIME_LIMIT=5.0  # secondes
-MVV = {chess.PAWN:1, chess.KNIGHT:3, chess.BISHOP:3,
-       chess.ROOK:5, chess.QUEEN:9, chess.KING:100}
 
 # Valeurs pour le MATERIEL pur (roi = 0)
 MATERIAL_VALS = {
@@ -193,10 +191,10 @@ def order_moves(board, tt_move=None):
             v = board.piece_at(mv.to_square) #victime
             a = board.piece_at(mv.from_square) #attaquant
             if v and a:
-                value_v = MVV.get(v.piece_type, 0)
-                value_a = MVV.get(a.piece_type, 0)
+                value_v = SEE_VALS.get(v.piece_type, 0)
+                value_a = SEE_VALS.get(a.piece_type, 0)
                 see = value_v - value_a
-                score += 1000 + 10 * value_v - value_a #le but est de prednre une piece de forte valeur avec une piece de faible valeur
+                score += 10 + 0.1 * value_v - value_a #le but est de prednre une piece de forte valeur avec une piece de faible valeur
                 if see < -1:  # capture perdante → fort malus
                     score -= 500
 
