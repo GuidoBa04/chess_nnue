@@ -33,6 +33,23 @@ SEE_VALS = {
 CENTER_SQS = [chess.D4, chess.E4, chess.D5, chess.E5]
 
 NULL_REDUCTION = 2  # réduction de profondeur pour Null Move Pruning
+
+#Paramètre heuristiques et bonus de tri: 
+BONUS_TT = 20000
+BONUS_ECHECS = 10
+BONUS_PROMO = 900
+BONUS_ROQUE = 200
+MALUS_PION_FG = 30 #si petit roque et pion f/g bougé
+MALUS_PAS_ROQUE_12E = 40
+MALUS_ROI_A_BOUGE = 100
+BONUS_DEVELOPPEMENT_MINEUR = 15
+MALUS_RETARD_DEVELOPPEMENT = 20
+BONUS_PION_CENTRE = 20
+BONUS_CENTRE_ATTAQUE=5
+BONUS_TOURS_CONNECTE = 20
+MALUS_CAVALIER_BANDE = 10
+MALUS_DAME_SORTIE_TOT=25
+
 # ============================================================
 # 1. Réseau NNUE
 # ============================================================
@@ -169,7 +186,7 @@ def order_moves(board, tt_move=None):
 
         # Bonus TT
         if mv == tt_move:
-            score += 20000
+            score += BONUS_TT
 
         # Captures : MVV-LVA + SEE pruning léger
         if board.is_capture(mv):
@@ -185,11 +202,11 @@ def order_moves(board, tt_move=None):
 
         # Coup donnant échec
         if gives_check(board, mv):
-            score += 10
+            score += BONUS_ECHECS
 
         # Coup de promotion
         if mv.promotion:
-            score += 900
+            score += BONUS_PROMO
 
         scored.append((score, mv))
 
@@ -261,7 +278,7 @@ def pawn_on(board, color, file_char, rank_num):
     return p is not None and p.color==color and p.piece_type==chess.PAWN
 
 def pawn_moved_from_start(board, color, file_char):
-    # f2/f7, g2/g7 ont-ils bougé ?
+    # f2/f7, g2/g7 bougé ? => pion devant petit roque
     start_sq = chess.square(ord(file_char)-97, 1 if color==chess.WHITE else 6)
     p = board.piece_at(start_sq)
     return not (p is not None and p.piece_type==chess.PAWN and p.color==color)
@@ -272,11 +289,11 @@ def opening_heuristics_side_cp(board, color) -> int:
     # 1) Roque
     castled_s = is_castled_kingside(board, color) or is_castled_queenside(board, color)
     if castled_s:
-        cp += 200  # bonus roque
+        cp += BONUS_ROQUE  # bonus roque
         # évite d’ouvrir f/g après roque petit
         if is_castled_kingside(board, color):
-            if pawn_moved_from_start(board, color, 'f'): cp -= 30
-            if pawn_moved_from_start(board, color, 'g'): cp -= 30
+            if pawn_moved_from_start(board, color, 'f'): cp -= MALUS_PION_FG
+            if pawn_moved_from_start(board, color, 'g'): cp -= MALUS_PION_FG
     else:
         # roi a déjà bougé → plus de droits de roque et roi hors e1/e8
         king_sq = board.king(color)
@@ -284,10 +301,10 @@ def opening_heuristics_side_cp(board, color) -> int:
         still_can_castle = (board.has_kingside_castling_rights(color) or
                             board.has_queenside_castling_rights(color))
         if king_sq != start_king and not still_can_castle and pieces_heavy(board):
-            cp -= 100  # a bougé avant de roquer alors que la position est encore lourde
+            cp -= MALUS_ROI_A_BOUGE  # a bougé avant de roquer alors que la position est encore lourde
         # retard de roque passé ~12e coup
         if board.fullmove_number >= 12 and pieces_heavy(board):
-            cp -= 40
+            cp -= MALUS_PAS_ROQUE_12E
 
     # 2) Développement mineures
     rank0 = 0 if color==chess.WHITE else 7
@@ -296,9 +313,9 @@ def opening_heuristics_side_cp(board, color) -> int:
         for sq in board.pieces(pt, color):
             if chess.square_rank(sq) == rank0:
                 undeveloped += 1
-    cp += 15 * (2 - min(2, undeveloped))  # bonus si sorties
+    cp += BONUS_DEVELOPPEMENT_MINEUR * (2 - min(2, undeveloped))  # bonus si sorties
     if board.fullmove_number >= 8 and undeveloped > 0:
-        cp -= 20 * undeveloped  # retard de développement
+        cp -= MALUS_RETARD_DEVELOPPEMENT * undeveloped  # retard de développement
 
     # 3) Centre
     # pions au centre
@@ -306,24 +323,24 @@ def opening_heuristics_side_cp(board, color) -> int:
     for sq in targets:
         p = board.piece_at(sq)
         if p and p.color==color and p.piece_type==chess.PAWN:
-            cp += 20
+            cp += BONUS_PION_CENTRE
     # cases du centre attaquées
     attacks = 0
     for sq in CENTER_SQS:
         if board.is_attacked_by(color, sq):
             attacks += 1
-    cp += 5 * attacks
+    cp += BONUS_CENTRE_ATTAQUE * attacks
 
     # 4) Tours connectées
     if has_rook_connection(board, color):
-        cp += 20
+        cp += BONUS_TOURS_CONNECTE
 
     # 5) Cavaliers sur la bande
-    cp -= 10 * knights_on_rim(board, color)
+    cp -= MALUS_CAVALIER_BANDE * knights_on_rim(board, color)
 
     # 6) Dame trop tôt
     if queen_developed_too_early(board, color):
-        cp -= 25
+        cp -= MALUS_DAME_SORTIE_TOT
 
     return cp
 

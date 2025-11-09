@@ -66,7 +66,7 @@ def train():
             loader = DataLoader(ds,
                                 batch_size=BATCH_SIZE,
                                 shuffle=True,
-                                num_workers=0,       # Important pour Windows
+                                num_workers=0,     
                                 pin_memory=True)
 
             pbar = tqdm(loader,

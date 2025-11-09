@@ -1,6 +1,5 @@
 # gui_chess_vs_engine.py
 # Interface graphique Pygame : humain vs moteur NNUE
-# Nécessite : pygame, python-chess, torch + nnue_core.py + halfkp_encoder.py
 
 import pygame
 import chess
@@ -13,7 +12,7 @@ from halfkp_encoder import parse_fen_or_startpos
 CASE_SIZE = 80
 BOARD_SIZE = 8
 WINDOW_SIZE = CASE_SIZE * BOARD_SIZE
-ICON_PATH = "icons"
+ICON_PATH = "icons" # chemin vers les icônes des pièces au format png
 DEPTH = 3  # profondeur moteur
 
 # === Couleurs ===
@@ -122,7 +121,7 @@ def main():
     # Configuration moteur
     device = pick_device("auto")
     print(f"Using device: {device}")
-    model = load_model("checkpoints/nnue_stockfish_best.pt", device)  # ou ton ckpt : load_model("nnue_tiny.pt", device)
+    model = load_model("checkpoints/nnue_stockfish_best.pt", device) # chemin vers le modèle
 
     board = parse_fen_or_startpos("startpos")
     human_color = chess.WHITE

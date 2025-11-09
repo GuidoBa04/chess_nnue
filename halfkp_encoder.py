@@ -1,7 +1,5 @@
 # halfkp_encoder.py
-# Étape 1 : encodeur demi-KP (HalfKP) + smoke test minimal
-# Dépendances: python-chess, torch
-#   pip install python-chess torch
+# encodeur demi-KP (HalfKP) + smoke test minimal
 
 import chess
 import torch

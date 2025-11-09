@@ -1,6 +1,5 @@
 # eval_vs_stockfish.py
-# Matchs NNUE vs Stockfish (faible) pour estimer un Elo relatif.
-# Prérequis: python-chess, torch, pygame non requis.
+# Matchs NNUE vs Stockfish
 
 import argparse
 import math
@@ -34,7 +33,7 @@ def setup_stockfish(sf_path, skill=None, uci_elo=None, threads=1, hash_mb=32):
     # 1) Skill Level (0..20)
     if skill is not None:
         opts["Skill Level"] = int(skill)
-    # 2) UCI_LimitStrength + UCI_Elo (si binaire supporte cette option)
+    # 2) UCI_LimitStrength + UCI_Elo 
     if uci_elo is not None:
         opts["UCI_LimitStrength"] = True
         opts["UCI_Elo"] = int(uci_elo)
@@ -58,7 +57,7 @@ def play_one_game(model, device, sf_engine, sf_limit, our_depth, our_color_white
 
     while not board.is_game_over():
         if (board.turn == chess.WHITE) == our_color_white:
-            # Notre coup
+            # Coup NNUE
             mv, score = search_best_move(board, our_depth, model, device)
             if mv is None:
                 break

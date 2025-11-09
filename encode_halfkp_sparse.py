@@ -12,7 +12,7 @@ CSV_PATH = "dataset_stockfish.csv"
 OUT_DIR = "encoded_sparse_chunks"
 CHUNK_SIZE = 10_000
 MAX_CP = 600
-LIMIT = None   # pour test, mets None pour tout le dataset
+LIMIT = None   # None pour tout le dataset, mettre un entier N pour limiter à N positions
 
 os.makedirs(OUT_DIR, exist_ok=True)
 

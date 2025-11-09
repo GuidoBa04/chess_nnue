@@ -5,23 +5,63 @@ Le projet permet d'entraîner le réseau sur des données de Stockfish et de jou
 
 ---
 
-## 🚀 Fonctionnalités principales
+## Fonctionnalités principales
 
-- Réseau de neurones **TinyNNUE** (évaluation efficace en centipions)
+- **NNUE** :
+Le réseau utilisé ici s’inspire de l’architecture **NNUE (Efficiently Updatable Neural Network Evaluation)** popularisée par Stockfish.  
+Il s’agit d’un **réseau dense de petite taille** (TinyNNUE) implémenté en PyTorch, entraîné sur des positions évaluées par Stockfish.
+
+Contrairement à un NNUE complet, cette version ne met pas encore à jour ses activations de façon incrémentale après chaque coup,  
+mais conserve la même logique d’entrée (encodage HalfKP) et la même finalité :  
+fournir une **évaluation rapide et apprise** des positions d’échecs. L'évaluation est donné en centipions, +100cp indique un avantage équivalent à un pion pour les blancs. 
+
+
 - **Recherche Negamax** avec :
-  - Élagage **α–β**
-  - **Table de transposition**
-  - **Null move pruning**
-  - **Late move reductions (LMR)**
-  - **Quiescence search**
-- Pondération dynamique entre évaluation NNUE, matériel et principes d'ouverture
-- Entraînement supervisé à partir de positions évaluées par Stockfish
-- Interface **Pygame** pour jouer contre l'IA
-- Script d'évaluation automatique contre Stockfish à différents niveaux
+  - **Élagage α–β** : limite l’exploration de l’arbre aux coups nécessaires.  
+    Dès qu’un coup ne peut pas améliorer le résultat final, la branche est coupée.
+  - **Table de transposition** : table de hachage où sont stockées les positions déjà évaluées pour éviter les recalculs.
+  - **Null move pruning** : simule un coup « nul » pour tester si la position est déjà suffisamment forte et ainsi gagner du temps de recherche.
+  - **Late move reductions (LMR)** : réduit la profondeur d’analyse pour les coups moins prometteurs (généralement testés en fin de liste).
+  - **Quiescence search** : prolonge la recherche lorsque la position est tactiquement instable (par ex. échanges de pièces en cours).
+
+- **Pondération dynamique** entre :
+  - l’évaluation NNUE (apprise),
+  - le matériel (valeur des pièces),
+  - et des heuristiques d’ouverture (développement, roque, contrôle du centre).
+
+- **Entraînement supervisé** à partir de positions évaluées par Stockfish (le moteur de référence)
+
+- **Interface Pygame** pour jouer contre l’IA localement.
+
+- **Script d’évaluation automatique** (`eval_vs_stockfish.py`) pour comparer les performances du moteur NNUE à différents niveaux de Stockfish.
 
 ---
 
-## 📦 Installation
+## L’encodage HalfKP (sparse) plutôt qu’une position brute
+
+L’encodage **HalfKP** (Half-King–Piece) est utilisé à la place d’une représentation brute de la position (type matrice 8×8×12) pour des raisons d’efficacité, de rapidité et de compatibilité avec l’approche NNUE.
+
+- **Principe :** chaque feature encode une paire *(roi, autre pièce)*.  
+  Le réseau apprend donc les relations spatiales entre la position du roi et celle de chaque autre pièce sur l’échiquier.  
+  Cela permet de **mettre à jour localement** les features après chaque coup, sans recalcul complet du réseau.
+
+- **Efficacité mémoire et calcul :**  
+  Une position brute (12×8×8 = 768 features denses) nécessiterait de recalculer toutes les activations après chaque coup.  
+  L’encodage **HalfKP** ne met à jour que les éléments affectés, rendant l’évaluation **incrémentale et rapide**.  
+
+- **Cohérence positionnelle :**  
+  Centrer la représentation autour du roi permet au modèle de mieux capturer la **sécurité du roi**, les **liaisons pièces-roi**, et les motifs tactiques réalistes qui influencent fortement la valeur d’une position.
+
+- **Format standard pour NNUE :**  
+  La majorité des moteurs modernes (Stockfish, Lc0-NNUE, Berserk) utilisent HalfKP pour garantir des performances stables et une bonne généralisation.
+
+- **Version sparse (HalfKP sparse) :**  
+  Pour l’entraînement, on utilise une **représentation creuse** des features : seule une petite partie du vecteur d’entrée est non nulle pour chaque position.  
+  Cela permet de **réduire drastiquement la taille des fichiers d’entraînement** et d’accélérer le chargement et le calcul lors de l’apprentissage avec PyTorch.  
+  Les données sont prétraitées avec `encode_halfkp_sparse.py`, qui transforme `dataset_stockfish.csv` en **chunks encodés sparse** stockés dans `encoded_sparse_chunks/`.
+
+--- 
+## Installation
 ```bash
 git clone https://github.com/GuidoBa04/chess_nnue.git
 cd chess_nnue
@@ -35,10 +75,9 @@ Vérifier que le fichier `dataset_stockfish.csv` est présent à la racine du pr
 Sinon, vous pouvez le télécharger ici : https://www.kaggle.com/datasets/ronakbadhe/chess-evaluations?resource=download
 
 ---
+## Entraînement du modèle
 
-## 🎓 Entraînement du modèle
-
-### 1️⃣ Encodage des positions
+### Encodage des positions
 
 Les positions du dataset sont transformées en représentation HalfKP sparse :
 
@@ -48,7 +87,7 @@ python encode_halfkp_sparse.py
 
 Ce script utilise `halfkp_encoder.py` pour encoder les positions et créer des chunks d'entraînement enregistrés dans le dossier `encoded_sparse_chunks/`.
 
-### 2️⃣ Entraînement du modèle NNUE
+### Entraînement du modèle NNUE
 
 On lance l'apprentissage supervisé du réseau à partir des chunks encodés :
 
@@ -58,11 +97,13 @@ python train_stockfish_chunks.py
 
 Le script sauvegarde les modèles intermédiaires et le meilleur modèle dans le dossier `checkpoints/` sous forme de fichiers `.pt` (PyTorch).
 
+
+
 ---
 
-## 🧩 Utilisation du moteur
+## Utilisation du moteur
 
-### 1️⃣ Évaluation et fonctions internes
+### Évaluation et fonctions internes
 
 Le fichier `nnue_core.py` contient le cœur du moteur :
 
@@ -73,7 +114,7 @@ Le fichier `nnue_core.py` contient le cœur du moteur :
 
 Ces fonctions peuvent être réutilisées dans d'autres projets ou pour l'analyse de positions.
 
-### 2️⃣ Jouer contre l'ordinateur (interface graphique)
+### Jouer contre l'ordinateur (interface graphique)
 
 Lancer l'interface Pygame pour affronter le moteur NNUE :
 
@@ -87,7 +128,7 @@ python gui_chess_vs_engine.py
 - Le moteur joue ensuite automatiquement son coup (profondeur par défaut : 3)
 - Le plateau se met à jour en temps réel
 
-### 3️⃣ Évaluer le moteur face à Stockfish
+### Évaluer le moteur face à Stockfish
 
 Pour comparer les performances du moteur NNUE à différentes profondeurs ou niveaux de Stockfish  :
 
@@ -115,7 +156,7 @@ python eval_vs_stockfish.py \
 
 
 
-## 📊 Exemple de sortie console
+## Exemple de sortie console
 
 ```
 [info] Modèle chargé depuis: checkpoints/nnue_stockfish_best.pt
@@ -129,7 +170,7 @@ python eval_vs_stockfish.py \
 
 ---
 
-## 🧱 Structure du projet
+## Structure du projet
 
 ```
 chess_nnue/
@@ -144,27 +185,18 @@ chess_nnue/
 ├── checkpoints/                 # Dossier contenant les modèles .pt
 ├── encoded_sparse_chunks/       # Données d'entraînement encodées
 └── results_sf_skill1.pgn        # Résultats des parties contre Stockfish
+└── Icons/                       # Image png des pièces du jeu
+
 ```
 
 ---
 
-## 🧩 Théorie rapide
+## Perspectives d'amélioration
 
-Le moteur combine :
-
-- Un réseau NNUE évaluant les positions via un encodage HalfKP efficace
-- Une recherche Negamax optimisée (α–β, TT, LMR, Null Move)
-- Une pondération dynamique entre réseau, matériel et principes d'ouverture
-- Un approfondissement itératif pour choisir le meilleur coup
-
----
-
-## 📈 Perspectives d'amélioration
-
+- Passage a un vrai réseau NNUE
 - Entraînement sur un dataset plus large (plus de parties Stockfish)
 - Ajout de certaines variables d'entraînement (variance) et évaluation du modèle suivant la phase de jeu (ouverture, milieu de jeu, finale, tactique, mat en x coups, etc.)
 - Ajout de tablebases pour les finales (lorsque moins de 7 pièces sont présentes sur l'échiquier)
 - Ajout d'un programme d'ouverture
-- Optimisation du temps de recherche via C++ ou CUDA
 - Ammélioration de l'algorithme de choix des coups
 - Ajout d'un réel moteur d'évaluation du classement élo
